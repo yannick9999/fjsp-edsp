@@ -18,7 +18,7 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         self.__solution_count += 1
 
 
-def solve_fjsp(jobs, operations, info):
+def solve_fjsp(jobs, operations, info, time_limit=60):
     jobs_or = []
     for job in jobs:
         job_info = []
@@ -32,10 +32,10 @@ def solve_fjsp(jobs, operations, info):
         if job_info != []:
             jobs_or.append(job_info)
 
-    return flexible_jobshop(jobs_or, info["machinesNb"])
+    return flexible_jobshop(jobs_or, info["machinesNb"], time_limit=time_limit)
 
 
-def flexible_jobshop(jobs, num_machines):
+def flexible_jobshop(jobs, num_machines, time_limit=60):
     """Solve a small flexible jobshop problem."""
     num_jobs = len(jobs)
     all_jobs = range(num_jobs)
@@ -142,7 +142,7 @@ def flexible_jobshop(jobs, num_machines):
 
     # Solve model.
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 15
+    solver.parameters.max_time_in_seconds = time_limit
 
     solution_printer = SolutionPrinter()
     status = solver.Solve(model, solution_printer)

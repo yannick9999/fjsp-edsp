@@ -11,8 +11,12 @@ import numpy as np
 import time
 
 
-os.makedirs('candidate_models', exist_ok=True)
-os.makedirs('models', exist_ok=True)
+
+def _atomic_dump(obj, path):
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f)
+    os.replace(tmp, path)
 
 def generate_train_instances(train_config):
     list_instances = generate_instance_list(**train_config)
@@ -23,9 +27,9 @@ def generate_train_instances(train_config):
     return instances
 
 def train(max_episodes = 10, train_freq = 2, new_freq=1, n_cases = 100, mask_option=1, sel_k=1, batch_size = 20, lr=0.001, hidden_channels=128, num_layers = 1, heads = 3
-         ,j_max = 11, j_min = 9, m_max = 6, m_min = 5, op_max = 6, max_processing = 25  ):
+         ,j_max = 11, j_min = 9, m_max = 6, m_min = 5, op_max = 6, max_processing = 25, paths = None ):
 
-    with open('val/validation_set.json', 'r') as infile:
+    with open(paths['val_set'], 'r') as infile:
         validation_set = json.load(infile)
 
     val_env = FJSSPEnv(validation_set, mask_option, sel_k)
@@ -95,7 +99,7 @@ def train(max_episodes = 10, train_freq = 2, new_freq=1, n_cases = 100, mask_opt
     improve_res = []
     val_env = FJSSPEnv(validation_set, mask_option, sel_k)
 
-    with open('val/validation_results.json', 'r') as infile:
+    with open(paths['val_results'], 'r') as infile:
         validation_results = json.load(infile)
 
     all_val_results = []
@@ -116,23 +120,21 @@ def train(max_episodes = 10, train_freq = 2, new_freq=1, n_cases = 100, mask_opt
         
     if len(imporve_ind)>0:
         name = str(int(random.uniform(10**10, 10**15)))
-        with open('candidate_models/model_params.json', 'r') as infile:
+        with open(paths['candidate_params'], 'r') as infile:
                 model_params = json.load(infile)
-            
+
         model_params.append({"name": name+".pth", "sel_k": sel_k, "mask_option": mask_option, "num_layers": num_layers, "hidden_channels": hidden_channels, "heads": heads, "all_val_results": all_val_results})
-        with open('candidate_models/model_params.json', 'w') as outfile:
-                json.dump(model_params, outfile)
-        ppo_agent.save("candidate_models/"+name+".pth")
+        _atomic_dump(model_params, paths['candidate_params'])
+        ppo_agent.save(os.path.join(paths['candidate_dir'], name+".pth"))
 
         for index, l_i in enumerate(imporve_ind):
             validation_results[l_i]["best"] = improve_res[index]
             validation_results[l_i]["name"] = name
-        with open('val/validation_results.json', 'w') as outfile:
-            json.dump(validation_results, outfile)
+        _atomic_dump(validation_results, paths['val_results'])
 
     return best_difference
 
-def test_model(model_name, folder, filename):
+def test_model(model_name, folder, filename, model_dir='models'):
 
     folder_path = folder
     test_instances = []
@@ -153,7 +155,7 @@ def test_model(model_name, folder, filename):
     best_results = [10**10]*len(test_instances)
 
     all_results = []
-    with open('models/model_params.json', 'r') as infile:
+    with open(os.path.join(model_dir, 'model_params.json'), 'r') as infile:
         model_params = json.load(infile)
 
     with torch.no_grad():
@@ -163,7 +165,7 @@ def test_model(model_name, folder, filename):
             test_env = FJSSPEnv(test_instances, param["mask_option"], param["sel_k"]) ##########
             t_ppo_agent = PPO(0.001, 0.001, 1, 3, 3, test_env, metadata,  param["hidden_channels"], param["num_layers"], 64, param["heads"])
             # preTrained weights directory
-            t_ppo_agent.load("models/"+m)
+            t_ppo_agent.load(os.path.join(model_dir, m))
 
             start_time = time.time()
 
