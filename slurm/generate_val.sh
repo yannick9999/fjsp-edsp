@@ -1,10 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=fjsp_val
-#SBATCH --account=rrg-cglee
+#SBATCH --account=def-cglee
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=16G
 #SBATCH --time=06:00:00
 #SBATCH --array=0-2
 #SBATCH --output=logs/val_seed%a_%j.out
